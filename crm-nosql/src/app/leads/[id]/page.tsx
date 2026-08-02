@@ -5,6 +5,7 @@ import Shell, { authHeaders, useUser } from "@/components/Shell";
 import StatusBadge from "@/components/StatusBadge";
 import { STATUSES, WORKFLOW, NOTE_FORMS } from "@/lib/store";
 import { ArrowLeft, RefreshCw, UserPlus } from "lucide-react";
+import WorkflowBar from "@/components/WorkflowBar";
 
 type Lead = any;
 const money = (n: number) => (n != null ? n.toLocaleString("vi-VN") + " đ" : "—");
@@ -20,15 +21,17 @@ export default function DetailPage() {
   const [noteForm, setNoteForm] = useState("");
   const [customNote, setCustomNote] = useState("");
   const [tsaId, setTsaId] = useState("");
+  const [notes, setNotes] = useState<{code:string;content:string}[]>([]);
   const [ap, setAp] = useState({ soTienDuyet:"", bhkv:"Có", thucNhan:"", laiSuat:"", thoiHan:"", ngayTra:"", traThang:"" });
   const [pending, setPending] = useState<{statusId:number; note:string}|null>(null);
 
   async function load() {
-    const [l, u] = await Promise.all([
+    const [l, u, n] = await Promise.all([
       fetch(`/api/leads/${id}`, { headers: authHeaders() }).then((r) => r.json()),
       fetch("/api/users").then((r) => r.json()),
+      fetch("/api/notes").then((r) => r.json()),
     ]);
-    setLead(l); setUsers(u);
+    setLead(l); setUsers(u); setNotes(n);
   }
   useEffect(() => { load(); }, [id]);
 
@@ -39,7 +42,8 @@ export default function DetailPage() {
 
   async function doStatus() {
     if (!noteForm) { alert("Chọn ghi chú"); return; }
-    const note = noteForm === "CUSTOM" ? customNote : `${noteForm} – ${NOTE_FORMS[noteForm]}`;
+    const nf = notes.find((x) => x.code === noteForm);
+    const note = noteForm === "CUSTOM" ? customNote : `${noteForm} – ${nf?.content || noteForm}`;
     if (noteForm === "CUSTOM" && !customNote.trim()) { alert("Nhập ghi chú"); return; }
     const sid = Number(newStatus);
     if (sid === 8) { setPending({ statusId: sid, note }); setModal("approve"); return; }
@@ -93,6 +97,8 @@ export default function DetailPage() {
           )}
         </div>
       </div>
+
+      <WorkflowBar statusId={lead.statusId} />
 
       <div className="grid lg:grid-cols-5 gap-5">
         <div className="lg:col-span-3 space-y-5">
@@ -165,7 +171,7 @@ export default function DetailPage() {
             <label className="block text-sm font-medium mb-1.5">Ghi chú *</label>
             <select value={noteForm} onChange={(e)=>setNoteForm(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl text-sm mb-3">
               <option value="">-- Chọn form --</option>
-              {Object.entries(NOTE_FORMS).map(([k,v]) => <option key={k} value={k}>{k} – {v}</option>)}
+              {notes.map((n) => <option key={n.code} value={n.code}>{n.code} – {n.content}</option>)}
               <option value="CUSTOM">Ghi chú khác...</option>
             </select>
             {noteForm==="CUSTOM" && <textarea value={customNote} onChange={(e)=>setCustomNote(e.target.value)} rows={2} className="w-full px-3 py-2 border rounded-xl text-sm mb-3" placeholder="Nhập ghi chú..."/>}

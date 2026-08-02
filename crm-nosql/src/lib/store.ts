@@ -15,29 +15,48 @@ export type Lead = {
   statusId: number; createdAt: string; updatedAt: string;
   history: HistoryItem[]; approval: Approval | null;
 };
+export type Notification = {
+  id: string; userId: string; title: string; body: string;
+  leadId?: string; read: boolean; createdAt: string;
+};
+export type NoteForm = { code: string; content: string };
 
 export const STATUSES = [
-  { id: 1, name: "Chờ Check Dup", color: "amber" },
-  { id: 2, name: "Nợ xấu/Chú ý", color: "rose" },
-  { id: 3, name: "Reject <90 ngày", color: "rose" },
-  { id: 4, name: "Đang gọi tư vấn", color: "sky" },
-  { id: 5, name: "KH bổ sung hồ sơ", color: "sky" },
-  { id: 6, name: "Đang thẩm định", color: "indigo" },
-  { id: 7, name: "Thẩm định từ chối", color: "rose" },
-  { id: 8, name: "Đã phê duyệt", color: "emerald" },
-  { id: 9, name: "Hồ sơ END", color: "slate" },
-  { id: 10, name: "Trả về Sale", color: "orange" },
+  { id: 1, name: "Chờ Check Dup", step: "Start", color: "amber", order: 1 },
+  { id: 2, name: "Nợ xấu/Chú ý", step: "No Pass", color: "rose", order: 0 },
+  { id: 3, name: "Reject <90 ngày", step: "No Pass", color: "rose", order: 0 },
+  { id: 4, name: "Đang gọi tư vấn", step: "Pass", color: "sky", order: 2 },
+  { id: 5, name: "KH bổ sung hồ sơ", step: "Pass", color: "sky", order: 3 },
+  { id: 6, name: "Đang thẩm định", step: "Pass", color: "indigo", order: 4 },
+  { id: 7, name: "Thẩm định từ chối", step: "Close", color: "rose", order: 0 },
+  { id: 8, name: "Đã phê duyệt", step: "Pass", color: "emerald", order: 5 },
+  { id: 9, name: "Hồ sơ END", step: "Close", color: "slate", order: 6 },
+  { id: 10, name: "Trả về Sale", step: "Return", color: "orange", order: 0 },
 ] as const;
+
+/** Main happy-path steps for visual workflow */
+export const PIPELINE = [
+  { id: 1, label: "Check Dup" },
+  { id: 4, label: "Gọi tư vấn" },
+  { id: 5, label: "Bổ sung HS" },
+  { id: 6, label: "Thẩm định" },
+  { id: 8, label: "Phê duyệt" },
+  { id: 9, label: "END" },
+];
 
 export const WORKFLOW: Record<number, number[]> = {
   1: [2, 3, 4], 2: [], 3: [], 4: [5, 10], 5: [6], 6: [7, 8, 10], 7: [], 8: [9], 9: [], 10: [],
 };
 
-export const NOTE_FORMS: Record<string, string> = {
-  D01: "Khách hàng không nghe máy", D02: "Thuê bao",
-  R01: "KH bị rj <90 ngày", R02: "KH nợ xấu/chú ý", R03: "KH bị từ chối",
-  UW01: "Hồ sơ đang thẩm định", UW02: "Hồ sơ được duyệt",
-};
+const DEFAULT_NOTES: NoteForm[] = [
+  { code: "D01", content: "Khách hàng không nghe máy" },
+  { code: "D02", content: "Thuê bao" },
+  { code: "R01", content: "KH bị rj <90 ngày" },
+  { code: "R02", content: "KH nợ xấu/chú ý" },
+  { code: "R03", content: "KH bị từ chối" },
+  { code: "UW01", content: "Hồ sơ đang thẩm định" },
+  { code: "UW02", content: "Hồ sơ được duyệt" },
+];
 
 const USERS: User[] = [
   { id: "u1", username: "admin", password: "admin123", hoTen: "Nguyễn Văn Admin", role: "Admin", sdt: "0901000001", cccd: "001000000001", active: true },
@@ -47,7 +66,7 @@ const USERS: User[] = [
   { id: "u5", username: "ctv2", password: "ctv123", hoTen: "Hoàng CTV Hai", role: "CTV", sdt: "0903000002", cccd: "001000000005", active: true },
 ];
 
-function seed(): Lead[] {
+function seedLeads(): Lead[] {
   const now = new Date().toISOString();
   return [
     {
@@ -89,34 +108,59 @@ function seed(): Lead[] {
   ];
 }
 
-const g = globalThis as unknown as { __nnf?: { users: User[]; leads: Lead[] } };
-if (!g.__nnf) g.__nnf = { users: USERS, leads: seed() };
+type Store = { users: User[]; leads: Lead[]; notes: NoteForm[]; notifications: Notification[] };
+const g = globalThis as unknown as { __nnf2?: Store };
+if (!g.__nnf2) {
+  g.__nnf2 = { users: USERS, leads: seedLeads(), notes: [...DEFAULT_NOTES], notifications: [] };
+}
+
+function uid() { return "n" + Date.now() + Math.random().toString(36).slice(2, 7); }
 
 export const db = {
-  users: () => g.__nnf!.users,
-  user: (id: string) => g.__nnf!.users.find((u) => u.id === id),
+  users: () => g.__nnf2!.users,
+  user: (id: string) => g.__nnf2!.users.find((u) => u.id === id),
   byLogin: (username: string, password: string) =>
-    g.__nnf!.users.find((u) => u.username === username && u.password === password && u.active),
-  leads: () => g.__nnf!.leads,
-  lead: (id: string) => g.__nnf!.leads.find((l) => l.id === id),
-  addLead: (lead: Lead) => { g.__nnf!.leads.push(lead); return lead; },
+    g.__nnf2!.users.find((u) => u.username === username && u.password === password && u.active),
+  leads: () => g.__nnf2!.leads,
+  lead: (id: string) => g.__nnf2!.leads.find((l) => l.id === id),
+  addLead: (lead: Lead) => { g.__nnf2!.leads.push(lead); return lead; },
   updateLead: (id: string, patch: Partial<Lead>) => {
-    const i = g.__nnf!.leads.findIndex((l) => l.id === id);
+    const i = g.__nnf2!.leads.findIndex((l) => l.id === id);
     if (i < 0) return null;
-    g.__nnf!.leads[i] = { ...g.__nnf!.leads[i], ...patch };
-    return g.__nnf!.leads[i];
+    g.__nnf2!.leads[i] = { ...g.__nnf2!.leads[i], ...patch };
+    return g.__nnf2!.leads[i];
   },
   updateUser: (id: string, patch: Partial<User>) => {
-    const i = g.__nnf!.users.findIndex((u) => u.id === id);
+    const i = g.__nnf2!.users.findIndex((u) => u.id === id);
     if (i < 0) return null;
-    g.__nnf!.users[i] = { ...g.__nnf!.users[i], ...patch };
-    return g.__nnf!.users[i];
+    g.__nnf2!.users[i] = { ...g.__nnf2!.users[i], ...patch };
+    return g.__nnf2!.users[i];
   },
-  addUser: (u: User) => { g.__nnf!.users.push(u); return u; },
+  addUser: (u: User) => { g.__nnf2!.users.push(u); return u; },
   filterLeads: (user: User) => {
-    const all = g.__nnf!.leads;
+    const all = g.__nnf2!.leads;
     if (user.role === "CTV") return all.filter((l) => l.ctvId === user.id);
     if (user.role === "TSA") return all.filter((l) => l.tsaId === user.id);
     return all;
   },
+  notes: () => g.__nnf2!.notes,
+  addNote: (n: NoteForm) => { g.__nnf2!.notes.push(n); return n; },
+  removeNote: (code: string) => { g.__nnf2!.notes = g.__nnf2!.notes.filter((n) => n.code !== code); },
+  updateNote: (code: string, content: string) => {
+    const n = g.__nnf2!.notes.find((x) => x.code === code);
+    if (n) n.content = content;
+    return n;
+  },
+  notify: (userId: string, title: string, body: string, leadId?: string) => {
+    const n: Notification = { id: uid(), userId, title, body, leadId, read: false, createdAt: new Date().toISOString() };
+    g.__nnf2!.notifications.unshift(n);
+    return n;
+  },
+  notifications: (userId: string) => g.__nnf2!.notifications.filter((n) => n.userId === userId),
+  markRead: (userId: string, id?: string) => {
+    g.__nnf2!.notifications.forEach((n) => {
+      if (n.userId === userId && (!id || n.id === id)) n.read = true;
+    });
+  },
+  unreadCount: (userId: string) => g.__nnf2!.notifications.filter((n) => n.userId === userId && !n.read).length,
 };
