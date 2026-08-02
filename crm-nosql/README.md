@@ -1,25 +1,20 @@
-# 3RD CRM – Next.js Demo
+# Nhật Nam Finance CRM
 
 CRM nội bộ quản lý Lead & Hồ sơ vay.
 
-## Stack
-- Next.js 14 (App Router)
-- Tailwind CSS
-- In-memory NoSQL store (demo)
+## Demo accounts
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | admin | admin123 |
+| TSA | tsa1 | tsa123 |
+| CTV | ctv1 | ctv123 |
 
-## Chạy local
+## Run
 ```bash
 npm install
 npm run dev
 ```
-Mở http://localhost:3000
 
 ## Deploy Render
-- Build Command: `npm install && npm run build`
-- Start Command: `npm start`
-- Root Directory: để trống (nếu code ở root repo)
-
-## Roles
-- **Admin** – full, gán Lead
-- **TSA** – xử lý Lead được gán
-- **CTV** – import Lead, xem của mình
+- Build: `npm install && npm run build`
+- Start: `npm start`

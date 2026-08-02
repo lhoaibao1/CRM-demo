@@ -3,3 +3,4 @@
 @tailwind utilities;
 
 body { @apply bg-slate-50 text-slate-900 antialiased; }
+input:focus, select:focus, textarea:focus { outline: none; }

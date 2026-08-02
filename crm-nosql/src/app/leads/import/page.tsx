@@ -2,98 +2,71 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Shell, { authHeaders } from "@/components/Shell";
-
-const fields = [
-  { name: "hoTen", label: "Họ tên *", type: "text", required: true },
-  { name: "cccd", label: "Số CCCD *", type: "text", required: true },
-  { name: "sdt", label: "Số điện thoại *", type: "text", required: true },
-  { name: "ngaySinh", label: "Ngày sinh *", type: "date", required: true },
-  { name: "noiCap", label: "Nơi cấp *", type: "text", required: true },
-  { name: "ngayCap", label: "Ngày cấp *", type: "date", required: true },
-  { name: "tinhThanh", label: "Tỉnh thành *", type: "text", required: true },
-  { name: "soTienYeuCau", label: "Số tiền yêu cầu *", type: "number", required: true },
-];
+import { Save, ArrowLeft } from "lucide-react";
 
 export default function ImportPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<Record<string, string>>({ gioiTinh: "", ghiChuCTV: "" });
-
-  function set(name: string, value: string) {
-    setForm((f) => ({ ...f, [name]: value }));
-  }
+  const [form, setForm] = useState<Record<string, string>>({ gioiTinh: "" });
+  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       const res = await fetch("/api/leads", {
-        method: "POST",
-        headers: authHeaders() as HeadersInit,
-        body: JSON.stringify(form),
+        method: "POST", headers: authHeaders(), body: JSON.stringify(form),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Lỗi");
-      alert("Tạo Lead thành công: " + data.id);
+      if (!res.ok) throw new Error(data.error);
       router.push("/leads/" + data.id);
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Lỗi");
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Lỗi");
+    } finally { setLoading(false); }
   }
+
+  const fields = [
+    ["hoTen","Họ tên *","text"], ["cccd","Số CCCD *","text"], ["sdt","Số điện thoại *","text"],
+    ["ngaySinh","Ngày sinh *","date"], ["noiCap","Nơi cấp *","text"], ["ngayCap","Ngày cấp *","date"],
+    ["tinhThanh","Tỉnh thành *","text"], ["soTienYeuCau","Số tiền yêu cầu *","number"],
+  ];
 
   return (
     <Shell>
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">Import Lead</h1>
-      <form onSubmit={submit} className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-3xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {fields.map((f) => (
-            <div key={f.name}>
-              <label className="block text-sm font-medium text-slate-600 mb-1">{f.label}</label>
-              <input
-                type={f.type}
-                required={f.required}
-                value={form[f.name] || ""}
-                onChange={(e) => set(f.name, e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand/30"
-              />
+      <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-nn-600 mb-4">
+        <ArrowLeft size={14} /> Quay lại
+      </button>
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">Import Lead mới</h1>
+      <form onSubmit={submit} className="bg-white rounded-2xl border border-slate-100 shadow-soft p-6 max-w-3xl">
+        <div className="grid sm:grid-cols-2 gap-4">
+          {fields.map(([name, label, type]) => (
+            <div key={name}>
+              <label className="block text-sm font-medium text-slate-600 mb-1.5">{label}</label>
+              <input type={type} required value={form[name]||""} onChange={(e) => set(name, e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-nn-500 focus:ring-4 focus:ring-nn-500/10" />
             </div>
           ))}
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">Giới tính *</label>
-            <select
-              required
-              value={form.gioiTinh}
-              onChange={(e) => set("gioiTinh", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-            >
+            <label className="block text-sm font-medium text-slate-600 mb-1.5">Giới tính *</label>
+            <select required value={form.gioiTinh} onChange={(e) => set("gioiTinh", e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm">
               <option value="">-- Chọn --</option>
-              <option>Nam</option>
-              <option>Nữ</option>
+              <option>Nam</option><option>Nữ</option>
             </select>
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-slate-600 mb-1">Ghi chú sơ bộ</label>
-            <textarea
-              rows={2}
-              value={form.ghiChuCTV}
-              onChange={(e) => set("ghiChuCTV", e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
-            />
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-slate-600 mb-1.5">Ghi chú sơ bộ</label>
+            <textarea rows={2} value={form.ghiChuCTV||""} onChange={(e) => set("ghiChuCTV", e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm" />
           </div>
         </div>
         <div className="mt-6 flex gap-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-5 py-2.5 bg-brand text-white rounded-lg text-sm font-medium hover:bg-brand-light disabled:opacity-60"
-          >
-            {loading ? "Đang tạo..." : "Tạo Lead"}
+          <button type="submit" disabled={loading}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-nn-700 hover:bg-nn-600 text-white rounded-xl text-sm font-medium shadow-soft disabled:opacity-60">
+            <Save size={16} /> {loading ? "Đang tạo..." : "Tạo Lead"}
           </button>
-          <button type="button" onClick={() => router.back()} className="px-5 py-2.5 border border-slate-200 rounded-lg text-sm hover:bg-slate-50">
-            Hủy
-          </button>
+          <button type="button" onClick={() => router.back()}
+            className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm hover:bg-slate-50">Hủy</button>
         </div>
       </form>
     </Shell>

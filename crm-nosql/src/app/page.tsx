@@ -1,60 +1,129 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-const ROLES = [
-  { role: "Admin", label: "Admin", desc: "Full quyền · Gán Lead · Quản lý", color: "bg-brand hover:bg-brand-light" },
-  { role: "TSA", label: "TSA", desc: "Xử lý hồ sơ được phân bổ", color: "bg-sky-600 hover:bg-sky-500" },
-  { role: "CTV", label: "CTV", desc: "Import Lead · Theo dõi của mình", color: "bg-orange-500 hover:bg-orange-400" },
-];
+import { useRouter } from "next/navigation";
+import Logo from "@/components/Logo";
+import { User, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState<string | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function login(role: string) {
-    setLoading(role);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr("");
+    setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ username, password }),
       });
-      if (!res.ok) throw new Error("Login failed");
-      const user = await res.json();
-      localStorage.setItem("crm_user", JSON.stringify(user));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sai tài khoản hoặc mật khẩu");
+      localStorage.setItem("nnf_user", JSON.stringify(data));
       router.push("/dashboard");
-    } catch {
-      alert("Đăng nhập thất bại");
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Lỗi đăng nhập");
     } finally {
-      setLoading(null);
+      setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand via-brand-light to-sky-400 p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
-        <div className="text-center mb-8">
-          <div className="text-4xl font-extrabold tracking-widest text-brand mb-2">3RD</div>
-          <h1 className="text-xl font-semibold text-slate-800">CRM Nội bộ</h1>
-          <p className="text-sm text-slate-500 mt-1">Quản lý Lead & Hồ sơ vay</p>
+    <div className="min-h-screen flex">
+      {/* Left panel */}
+      <div className="hidden lg:flex lg:w-[48%] relative bg-gradient-to-br from-nn-950 via-nn-800 to-nn-600 overflow-hidden">
+        <div className="absolute inset-0 opacity-30"
+          style={{ backgroundImage: "radial-gradient(circle at 20% 50%, rgba(201,162,39,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(12,140,231,0.4) 0%, transparent 40%)" }} />
+        <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
+          <Logo size="lg" light />
+          <div className="animate-slide-up">
+            <h1 className="text-4xl font-bold leading-tight mb-4">
+              Quản lý Lead<br />
+              <span className="text-gold-light">chuyên nghiệp</span>
+            </h1>
+            <p className="text-nn-100/80 text-lg max-w-sm leading-relaxed">
+              Hệ thống CRM nội bộ dành cho đội ngũ CTV, TSA và Admin của Nhật Nam Finance.
+            </p>
+          </div>
+          <div className="flex gap-8 text-sm text-nn-200/70">
+            <div><div className="text-2xl font-bold text-white">3</div>Vai trò</div>
+            <div><div className="text-2xl font-bold text-white">10</div>Trạng thái</div>
+            <div><div className="text-2xl font-bold text-white">24/7</div>Theo dõi</div>
+          </div>
         </div>
-        <div className="space-y-3">
-          {ROLES.map((r) => (
-            <button
-              key={r.role}
-              onClick={() => login(r.role)}
-              disabled={!!loading}
-              className={`w-full text-left px-5 py-4 rounded-xl text-white transition ${r.color} disabled:opacity-60`}
-            >
-              <div className="font-semibold text-lg">
-                {loading === r.role ? "Đang đăng nhập..." : r.label}
+      </div>
+
+      {/* Right – form */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-[400px] animate-fade-in">
+          <div className="lg:hidden mb-8"><Logo size="md" /></div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">Đăng nhập</h2>
+          <p className="text-slate-500 text-sm mb-8">Nhập tài khoản để tiếp tục vào hệ thống</p>
+
+          <form onSubmit={submit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Tên đăng nhập</label>
+              <div className="relative">
+                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  value={username} onChange={(e) => setUsername(e.target.value)}
+                  required autoFocus
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-nn-500 focus:ring-4 focus:ring-nn-500/10 transition"
+                  placeholder="username"
+                />
               </div>
-              <div className="text-sm opacity-90">{r.desc}</div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Mật khẩu</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type={show ? "text" : "password"}
+                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full pl-10 pr-11 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-nn-500 focus:ring-4 focus:ring-nn-500/10 transition"
+                  placeholder="••••••••"
+                />
+                <button type="button" onClick={() => setShow(!show)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {err && (
+              <div className="text-sm text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">{err}</div>
+            )}
+
+            <button type="submit" disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-nn-700 hover:bg-nn-600 text-white font-semibold text-sm shadow-soft transition disabled:opacity-60">
+              {loading ? "Đang đăng nhập..." : <>Đăng nhập <ArrowRight className="w-4 h-4" /></>}
             </button>
-          ))}
+          </form>
+
+          <div className="mt-8 p-4 rounded-xl bg-slate-50 border border-slate-100">
+            <p className="text-xs font-medium text-slate-500 mb-2">Tài khoản demo</p>
+            <div className="grid grid-cols-3 gap-2 text-xs text-slate-600">
+              <div className="bg-white rounded-lg p-2 border border-slate-100">
+                <div className="font-semibold text-nn-700">Admin</div>
+                <div>admin / admin123</div>
+              </div>
+              <div className="bg-white rounded-lg p-2 border border-slate-100">
+                <div className="font-semibold text-sky-700">TSA</div>
+                <div>tsa1 / tsa123</div>
+              </div>
+              <div className="bg-white rounded-lg p-2 border border-slate-100">
+                <div className="font-semibold text-orange-600">CTV</div>
+                <div>ctv1 / ctv123</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="text-center text-xs text-slate-400 mt-6">Demo · Dữ liệu lưu trên server</p>
       </div>
     </div>
   );
