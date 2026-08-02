@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Shell, { authHeaders, useUser } from "@/components/Shell";
 import StatusBadge from "@/components/StatusBadge";
-import { STATUSES, WORKFLOW, NOTE_FORMS } from "@/lib/store";
+import { STATUSES, WORKFLOW } from "@/lib/store";
 import { ArrowLeft, RefreshCw, UserPlus } from "lucide-react";
 import WorkflowBar from "@/components/WorkflowBar";
 
