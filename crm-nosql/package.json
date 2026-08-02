@@ -1,14 +1,27 @@
 {
-  "name": "3rd-crm-demo",
+  "name": "3rd-crm-next",
   "version": "1.0.0",
-  "description": "3RD CRM Demo - Lead management with NoSQL document store",
-  "main": "server.js",
+  "private": true,
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
-  "keywords": ["crm", "lead", "nosql", "demo"],
-  "author": "3RD-VN",
-  "license": "MIT",
-  "engines": { "node": ">=16" }
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "lucide-react": "^0.424.0",
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5",
+    "tailwindcss": "^3.4.7",
+    "postcss": "^8",
+    "autoprefixer": "^10"
+  }
 }
