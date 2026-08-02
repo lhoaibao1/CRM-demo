@@ -229,7 +229,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 ensureDB();
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log('\\n  3RD CRM Demo → http://localhost:' + PORT);
   console.log('  NoSQL DB → ' + DB_PATH + '\\n');
 });
