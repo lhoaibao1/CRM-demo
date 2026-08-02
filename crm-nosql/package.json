@@ -1,0 +1,14 @@
+{
+  "name": "3rd-crm-demo",
+  "version": "1.0.0",
+  "description": "3RD CRM Demo - Lead management with NoSQL document store",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["crm", "lead", "nosql", "demo"],
+  "author": "3RD-VN",
+  "license": "MIT",
+  "engines": { "node": ">=16" }
+}

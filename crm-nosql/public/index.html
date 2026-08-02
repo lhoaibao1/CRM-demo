@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3RD CRM – Demo</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login-screen" class="screen">
+    <div class="login-box">
+      <div class="logo-text">3RD</div>
+      <h2>CRM Nội bộ – Demo</h2>
+      <p class="sub">NoSQL · Chọn role đăng nhập</p>
+      <div class="role-btns">
+        <button onclick="login('Admin')" class="btn admin">Admin</button>
+        <button onclick="login('TSA')" class="btn tsa">TSA</button>
+        <button onclick="login('CTV')" class="btn ctv">CTV</button>
+      </div>
+      <p class="hint">NoSQL Backend (data/db.json) – dữ liệu lưu trên trình duyệt</p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app-screen" class="screen hidden">
+    <header class="topbar">
+      <div class="brand">3RD CRM</div>
+      <div class="user-info">
+        <span id="user-label"></span>
+        <button onclick="logout()" class="btn-sm">Đăng xuất</button>
+      </div>
+    </header>
+
+    <nav class="sidebar" id="sidebar"></nav>
+
+    <main class="content">
+      <!-- DASHBOARD -->
+      <section id="page-dashboard" class="page hidden">
+        <h1>Dashboard</h1>
+        <div class="stats" id="stats-cards"></div>
+        <div class="card">
+          <h3>Lead gần đây</h3>
+          <div id="recent-leads"></div>
+        </div>
+      </section>
+
+      <!-- IMPORT LEAD (CTV) -->
+      <section id="page-import" class="page hidden">
+        <h1>Import Lead</h1>
+        <form id="import-form" class="card form-grid" onsubmit="submitLead(event)">
+          <div class="field"><label>Họ tên *</label><input name="hoTen" required /></div>
+          <div class="field"><label>Số CCCD *</label><input name="cccd" required /></div>
+          <div class="field"><label>Số điện thoại *</label><input name="sdt" required /></div>
+          <div class="field"><label>Ngày sinh *</label><input name="ngaySinh" type="date" required /></div>
+          <div class="field"><label>Nơi cấp *</label><input name="noiCap" required /></div>
+          <div class="field"><label>Ngày cấp *</label><input name="ngayCap" type="date" required /></div>
+          <div class="field"><label>Giới tính *</label>
+            <select name="gioiTinh" required><option value="">-- Chọn --</option><option>Nam</option><option>Nữ</option></select>
+          </div>
+          <div class="field"><label>Tỉnh thành *</label><input name="tinhThanh" required /></div>
+          <div class="field"><label>Số tiền yêu cầu *</label><input name="soTienYeuCau" type="number" required /></div>
+          <div class="field full"><label>Ghi chú sơ bộ</label><textarea name="ghiChuCTV" rows="2"></textarea></div>
+          <div class="field full"><button type="submit" class="btn primary">Tạo Lead</button></div>
+        </form>
+      </section>
+
+      <!-- LEAD LIST -->
+      <section id="page-leads" class="page hidden">
+        <h1>Quản lý Lead</h1>
+        <div class="toolbar">
+          <input id="search-input" placeholder="Tìm họ tên / CCCD / SĐT..." oninput="renderLeads()" />
+          <select id="filter-status" onchange="renderLeads()">
+            <option value="">Tất cả trạng thái</option>
+          </select>
+        </div>
+        <div class="card table-wrap">
+          <table id="leads-table">
+            <thead>
+              <tr>
+                <th>Mã Lead</th>
+                <th>Họ tên</th>
+                <th>SĐT</th>
+                <th>CTV</th>
+                <th>TSA</th>
+                <th>Trạng thái</th>
+                <th>Ngày tạo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- LEAD DETAIL -->
+      <section id="page-detail" class="page hidden">
+        <button class="btn-sm" onclick="showPage('leads')">← Quay lại</button>
+        <h1 id="detail-title">Chi tiết Lead</h1>
+        <div id="detail-content"></div>
+      </section>
+
+      <!-- ASSIGN (Admin) -->
+      <section id="page-assign" class="page hidden">
+        <h1>Phân bổ Lead cho TSA</h1>
+        <div class="card">
+          <p>Chọn Lead chưa gán và gán cho TSA (thủ công, không random).</p>
+          <div id="assign-list"></div>
+        </div>
+      </section>
+
+      <!-- USERS (Admin) -->
+      <section id="page-users" class="page hidden">
+        <h1>Quản lý User</h1>
+        <div class="card table-wrap">
+          <table>
+            <thead><tr><th>Họ tên</th><th>Role</th><th>SĐT</th><th>CCCD</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: Update Status -->
+  <div id="modal-status" class="modal hidden">
+    <div class="modal-box">
+      <h3>Cập nhật trạng thái</h3>
+      <div class="field"><label>Trạng thái mới</label>
+        <select id="new-status"></select>
+      </div>
+      <div class="field"><label>Ghi chú *</label>
+        <select id="note-form" onchange="toggleCustomNote()">
+          <option value="">-- Chọn form mẫu --</option>
+          <option value="D01">D01 – Khách hàng không nghe máy</option>
+          <option value="D02">D02 – Thuê bao</option>
+          <option value="R01">R01 – KH bị rj &lt;90 ngày</option>
+          <option value="R02">R02 – KH nợ xấu/chú ý</option>
+          <option value="R03">R03 – KH bị từ chối</option>
+          <option value="UW01">UW01 – Hồ sơ đang thẩm định</option>
+          <option value="UW02">UW02 – Hồ sơ được duyệt</option>
+          <option value="CUSTOM">Ghi chú khác...</option>
+        </select>
+      </div>
+      <div class="field hidden" id="custom-note-wrap">
+        <label>Nội dung ghi chú</label>
+        <textarea id="custom-note" rows="2"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal('modal-status')">Hủy</button>
+        <button class="btn primary" onclick="confirmStatus()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Approval form -->
+  <div id="modal-approve" class="modal hidden">
+    <div class="modal-box wide">
+      <h3>Thông tin phê duyệt (bắt buộc)</h3>
+      <div class="form-grid">
+        <div class="field"><label>Số tiền phê duyệt *</label><input id="ap-soTienDuyet" type="number" /></div>
+        <div class="field"><label>BHKV *</label>
+          <select id="ap-bhkv"><option>Có</option><option>Không</option></select>
+        </div>
+        <div class="field"><label>Số tiền thực nhận *</label><input id="ap-thucNhan" type="number" /></div>
+        <div class="field"><label>Lãi suất (%/năm) *</label><input id="ap-laiSuat" type="number" step="0.1" /></div>
+        <div class="field"><label>Thời hạn vay (tháng) *</label><input id="ap-thoiHan" type="number" /></div>
+        <div class="field"><label>Ngày trả nợ hằng tháng *</label><input id="ap-ngayTra" type="number" min="1" max="31" /></div>
+        <div class="field"><label>Số tiền trả hằng tháng *</label><input id="ap-traThang" type="number" /></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal('modal-approve')">Hủy</button>
+        <button class="btn primary" onclick="confirmApprove()">Lưu & Chuyển Đã phê duyệt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Assign -->
+  <div id="modal-assign" class="modal hidden">
+    <div class="modal-box">
+      <h3>Gán TSA cho Lead</h3>
+      <p id="assign-lead-name"></p>
+      <div class="field"><label>Chọn TSA</label>
+        <select id="assign-tsa"></select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal('modal-assign')">Hủy</button>
+        <button class="btn primary" onclick="confirmAssign()">Gán</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
