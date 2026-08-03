@@ -105,26 +105,9 @@ export default function LoginPage() {
               {loading ? "Đang đăng nhập..." : <>Đăng nhập <ArrowRight className="w-4 h-4" /></>}
             </button>
           </form>
-
-          <div className="mt-8 p-4 rounded-xl bg-slate-50 border border-slate-100">
-            <p className="text-xs font-medium text-slate-500 mb-2">Tài khoản demo</p>
-            <div className="grid grid-cols-3 gap-2 text-xs text-slate-600">
-              <div className="bg-white rounded-lg p-2 border border-slate-100">
-                <div className="font-semibold text-nn-700">Admin</div>
-                <div>admin / admin123</div>
-              </div>
-              <div className="bg-white rounded-lg p-2 border border-slate-100">
-                <div className="font-semibold text-sky-700">TSA</div>
-                <div>tsa1 / tsa123</div>
-              </div>
-              <div className="bg-white rounded-lg p-2 border border-slate-100">
-                <div className="font-semibold text-orange-600">CTV</div>
-                <div>ctv1 / ctv123</div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
   );
 }
+
