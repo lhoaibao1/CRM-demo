@@ -4,18 +4,16 @@ import { useParams, useRouter } from "next/navigation";
 import Shell, { authHeaders, useUser } from "@/components/Shell";
 import StatusBadge from "@/components/StatusBadge";
 import { STATUSES, WORKFLOW } from "@/lib/store";
-import { ArrowLeft, RefreshCw, UserPlus, Pencil } from "lucide-react";
+import { ArrowLeft, RefreshCw, UserPlus, Pencil, FileCheck } from "lucide-react";
 import WorkflowBar from "@/components/WorkflowBar";
 
 type Lead = any;
 
 function formatMoney(n: number | string) {
-  const num = typeof n === "string" ? Number(n.replace(/\D/g, "")) : n;
-  if (num == null || isNaN(num)) return "—";
-  return num.toLocaleString("vi-VN") + " đ";
+  const num = typeof n === "string" ? Number(String(n).replace(/\D/g, "")) : n;
+  if (num == null || isNaN(Number(num))) return "—";
+  return Number(num).toLocaleString("vi-VN") + " đ";
 }
-
-/** Format input while typing: 50000000 → 50.000.000 */
 function fmtInput(raw: string) {
   const digits = raw.replace(/\D/g, "");
   if (!digits) return "";
@@ -33,18 +31,19 @@ export default function DetailPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [notes, setNotes] = useState<{ code: string; content: string }[]>([]);
   const [products, setProducts] = useState<{ id: string; name: string; laiSuat: number }[]>([]);
-  const [modal, setModal] = useState<"status" | "approve" | "assign" | null>(null);
+  const [modal, setModal] = useState<"status" | "approve" | "assign" | "disburse" | "editAp" | null>(null);
   const [newStatus, setNewStatus] = useState("");
   const [noteForm, setNoteForm] = useState("");
   const [customNote, setCustomNote] = useState("");
   const [tsaId, setTsaId] = useState("");
+  const [soHopDong, setSoHopDong] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [ap, setAp] = useState({
     soTienDuyet: "", thucNhan: "", traThang: "",
     bhkv: "Có", laiSuat: "", thoiHan: "", ngayTra: "",
-    sanPham: "", idRlos: "", soHopDong: "",
+    sanPham: "", idRlos: "",
   });
-  const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<{ statusId: number; note: string } | null>(null);
 
   async function load() {
@@ -61,9 +60,9 @@ export default function DetailPage() {
   const name = (uid: string | null) => users.find((u) => u.id === uid)?.hoTen || "—";
   const nextIds = lead ? (WORKFLOW[lead.statusId] || []) : [];
   const canUpdate = user && (user.role === "Admin" || (user.role === "TSA" && lead?.tsaId === user.id)) && nextIds.length > 0;
-  // Admin gán TSA bất kỳ Lead nào
   const canAssign = user?.role === "Admin" && lead;
   const canEdit = user?.role === "Admin" && lead;
+  const canEditAp = user?.role === "Admin" && lead?.approval;
 
   function pickProduct(name: string) {
     const p = products.find((x) => x.name === name);
@@ -81,6 +80,13 @@ export default function DetailPage() {
       setModal("approve");
       return;
     }
+    // Giải ngân (status 9) → nhập số hợp đồng
+    if (sid === 9) {
+      setPending({ statusId: sid, note });
+      setSoHopDong(lead.approval?.soHopDong || "");
+      setModal("disburse");
+      return;
+    }
     await fetch(`/api/leads/${id}/status`, {
       method: "PATCH", headers: authHeaders(),
       body: JSON.stringify({ statusId: sid, note }),
@@ -91,7 +97,7 @@ export default function DetailPage() {
   async function doApprove() {
     if (!pending) return;
     if (!ap.sanPham || !ap.soTienDuyet || !ap.thucNhan || !ap.laiSuat || !ap.thoiHan || !ap.ngayTra || !ap.traThang) {
-      alert("Điền đủ: Sản phẩm, số tiền, lãi suất, kỳ hạn..."); return;
+      alert("Điền đủ thông tin phê duyệt"); return;
     }
     const approval = {
       soTienDuyet: parseMoney(ap.soTienDuyet),
@@ -102,8 +108,8 @@ export default function DetailPage() {
       thoiHan: Number(ap.thoiHan),
       ngayTra: Number(ap.ngayTra),
       sanPham: ap.sanPham,
-      idRlos: ap.idRlos,
-      soHopDong: ap.soHopDong || "",
+      idRlos: ap.idRlos || "",
+      soHopDong: lead.approval?.soHopDong || "",
     };
     await fetch(`/api/leads/${id}/status`, {
       method: "PATCH", headers: authHeaders(),
@@ -116,6 +122,62 @@ export default function DetailPage() {
       });
     }
     setModal(null); setPending(null); load();
+  }
+
+  async function doDisburse() {
+    if (!pending) return;
+    if (!soHopDong.trim()) { alert("Nhập số hợp đồng khi giải ngân"); return; }
+    const approval = { ...(lead.approval || {}), soHopDong: soHopDong.trim() };
+    await fetch(`/api/leads/${id}/status`, {
+      method: "PATCH", headers: authHeaders(),
+      body: JSON.stringify({ statusId: pending.statusId, note: pending.note, approval }),
+    });
+    setModal(null); setPending(null); load();
+  }
+
+  async function saveApprovalEdit(e: React.FormEvent) {
+    e.preventDefault();
+    const approval = {
+      soTienDuyet: parseMoney(ap.soTienDuyet),
+      thucNhan: parseMoney(ap.thucNhan),
+      traThang: parseMoney(ap.traThang),
+      bhkv: ap.bhkv,
+      laiSuat: Number(ap.laiSuat),
+      thoiHan: Number(ap.thoiHan),
+      ngayTra: Number(ap.ngayTra),
+      sanPham: ap.sanPham,
+      idRlos: ap.idRlos || lead.approval?.idRlos || "",
+      soHopDong: soHopDong || lead.approval?.soHopDong || "",
+    };
+    // Admin save approval without status change
+    await fetch(`/api/leads/${id}/approval`, {
+      method: "PATCH", headers: authHeaders(),
+      body: JSON.stringify({ approval }),
+    });
+    if (ap.idRlos) {
+      await fetch(`/api/leads/${id}`, {
+        method: "PATCH", headers: authHeaders(),
+        body: JSON.stringify({ idRlos: ap.idRlos }),
+      });
+    }
+    setModal(null); load();
+  }
+
+  function openEditAp() {
+    const a = lead.approval;
+    setAp({
+      soTienDuyet: a.soTienDuyet != null ? Number(a.soTienDuyet).toLocaleString("vi-VN") : "",
+      thucNhan: a.thucNhan != null ? Number(a.thucNhan).toLocaleString("vi-VN") : "",
+      traThang: a.traThang != null ? Number(a.traThang).toLocaleString("vi-VN") : "",
+      bhkv: a.bhkv || "Có",
+      laiSuat: String(a.laiSuat ?? ""),
+      thoiHan: String(a.thoiHan ?? ""),
+      ngayTra: String(a.ngayTra ?? ""),
+      sanPham: a.sanPham || "",
+      idRlos: a.idRlos || lead.idRlos || "",
+    });
+    setSoHopDong(a.soHopDong || "");
+    setModal("editAp");
   }
 
   async function doAssign() {
@@ -135,21 +197,29 @@ export default function DetailPage() {
     </Shell>
   );
 
+  const infoItems = [
+    ["CCCD", lead.cccd], ["SĐT", lead.sdt], ["Ngày sinh", lead.ngaySinh], ["Giới tính", lead.gioiTinh],
+    ["Nơi cấp", lead.noiCap], ["Ngày cấp", lead.ngayCap], ["Tỉnh thành", lead.tinhThanh],
+    ["Số tiền YC", formatMoney(lead.soTienYeuCau)], ["ID RLOS", lead.idRlos || "—"],
+    ["CTV", name(lead.ctvId)], ["TSA", name(lead.tsaId)],
+  ];
+
   return (
     <Shell>
-      <button onClick={() => router.push("/leads")} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-nn-600 mb-4">
-        <ArrowLeft size={14} /> Danh sách Lead
+      <button onClick={() => router.push("/leads")} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-nn-600 mb-3">
+        <ArrowLeft size={14} /> Danh sách
       </button>
 
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-nn-600 to-nn-800 flex items-center justify-center text-white text-xl font-bold shadow-glow">
+      {/* Header compact */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-nn-600 to-nn-800 flex items-center justify-center text-white font-bold shadow-soft shrink-0">
             {lead.hoTen.charAt(0)}
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">{lead.hoTen}</h1>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-xs font-mono text-slate-400">{lead.id}</span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-slate-900 truncate">{lead.hoTen}</h1>
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              <span className="text-[11px] font-mono text-slate-400">{lead.id}</span>
               <StatusBadge statusId={lead.statusId} />
             </div>
           </div>
@@ -157,14 +227,14 @@ export default function DetailPage() {
         <div className="flex flex-wrap gap-2">
           {canUpdate && (
             <button onClick={() => { setNewStatus(String(nextIds[0])); setNoteForm(""); setModal("status"); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-nn-700 hover:bg-nn-600 text-white rounded-xl text-sm font-medium shadow-soft">
-              <RefreshCw size={15} /> Cập nhật trạng thái
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-nn-700 hover:bg-nn-600 text-white rounded-lg text-sm font-medium">
+              <RefreshCw size={14} /> Cập nhật TT
             </button>
           )}
           {canAssign && (
             <button onClick={() => { setTsaId(lead.tsaId || ""); setModal("assign"); }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-400 text-white rounded-xl text-sm font-medium">
-              <UserPlus size={15} /> {lead.tsaId ? "Đổi TSA" : "Gán TSA"}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-500 hover:bg-orange-400 text-white rounded-lg text-sm font-medium">
+              <UserPlus size={14} /> {lead.tsaId ? "Đổi TSA" : "Gán TSA"}
             </button>
           )}
           {canEdit && (
@@ -177,8 +247,8 @@ export default function DetailPage() {
               });
               setEditOpen(true);
             }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-medium">
-              <Pencil size={15} /> Sửa thông tin
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium">
+              <Pencil size={14} /> Sửa
             </button>
           )}
         </div>
@@ -186,74 +256,80 @@ export default function DetailPage() {
 
       <WorkflowBar statusId={lead.statusId} />
 
-      <div className="grid lg:grid-cols-5 gap-5">
-        <div className="lg:col-span-3 space-y-5">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-soft p-6">
-            <h2 className="font-semibold text-slate-800 mb-4">Thông tin khách hàng</h2>
-            <div className="grid sm:grid-cols-2 gap-4 text-sm">
-              {[
-                ["CCCD", lead.cccd], ["SĐT", lead.sdt], ["Ngày sinh", lead.ngaySinh], ["Giới tính", lead.gioiTinh],
-                ["Nơi cấp", lead.noiCap], ["Ngày cấp", lead.ngayCap], ["Tỉnh thành", lead.tinhThanh],
-                ["Số tiền yêu cầu", formatMoney(lead.soTienYeuCau)], ["ID RLOS", lead.idRlos || "—"], ["CTV", name(lead.ctvId)], ["TSA", name(lead.tsaId)],
-              ].map(([k, v]) => (
-                <div key={k} className="flex flex-col">
-                  <span className="text-xs text-slate-400 mb-0.5">{k}</span>
-                  <span className="font-medium text-slate-800">{v}</span>
+      <div className="grid lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 space-y-4">
+          {/* Customer card compact */}
+          <div className="bg-white rounded-xl border border-slate-100 shadow-soft p-4">
+            <h2 className="text-sm font-semibold text-slate-700 mb-3">Thông tin khách hàng</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2.5 text-sm">
+              {infoItems.map(([k, v]) => (
+                <div key={k}>
+                  <div className="text-[11px] text-slate-400">{k}</div>
+                  <div className="font-medium text-slate-800 truncate">{v}</div>
                 </div>
               ))}
-              {lead.ghiChuCTV && (
-                <div className="sm:col-span-2">
-                  <span className="text-xs text-slate-400">Ghi chú CTV</span>
-                  <p className="font-medium text-slate-700 mt-0.5">{lead.ghiChuCTV}</p>
-                </div>
-              )}
             </div>
+            {lead.ghiChuCTV && (
+              <div className="mt-3 pt-3 border-t border-slate-50 text-sm">
+                <span className="text-[11px] text-slate-400">Ghi chú CTV · </span>
+                <span className="text-slate-700">{lead.ghiChuCTV}</span>
+              </div>
+            )}
           </div>
 
+          {/* Approval card */}
           {lead.approval && (
-            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100 p-6">
-              <h2 className="font-semibold text-emerald-800 mb-4">Thông tin phê duyệt</h2>
-              <div className="grid sm:grid-cols-2 gap-3 text-sm">
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50/80 rounded-xl border border-emerald-100 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-emerald-800">Thông tin phê duyệt</h2>
+                {canEditAp && (
+                  <button onClick={openEditAp} className="text-xs text-emerald-700 hover:underline flex items-center gap-1">
+                    <Pencil size={12} /> Sửa phê duyệt
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2.5 text-sm">
                 {[
                   ["Sản phẩm", lead.approval.sanPham || "—"],
-                  ["Số hợp đồng", lead.approval.soHopDong || "—"],
-                  ["ID RLOS", lead.approval.idRlos || "—"],
                   ["Số tiền duyệt", formatMoney(lead.approval.soTienDuyet)],
-                  ["BHKV", lead.approval.bhkv],
                   ["Thực nhận", formatMoney(lead.approval.thucNhan)],
-                  ["Lãi suất", lead.approval.laiSuat + "%/năm"],
-                  ["Thời hạn", lead.approval.thoiHan + " tháng"],
-                  ["Ngày trả", "Ngày " + lead.approval.ngayTra],
-                  ["Trả hàng tháng", formatMoney(lead.approval.traThang)],
+                  ["Lãi suất", (lead.approval.laiSuat ?? "—") + "%/năm"],
+                  ["Thời hạn", (lead.approval.thoiHan ?? "—") + " tháng"],
+                  ["Ngày trả", "Ngày " + (lead.approval.ngayTra ?? "—")],
+                  ["Trả tháng", formatMoney(lead.approval.traThang)],
+                  ["BHKV", lead.approval.bhkv || "—"],
+                  ["ID RLOS", lead.approval.idRlos || lead.idRlos || "—"],
+                  ...(lead.approval.soHopDong ? [["Số hợp đồng", lead.approval.soHopDong]] as [string, string][] : []),
                 ].map(([k, v]) => (
                   <div key={k}>
-                    <span className="text-xs text-emerald-600/70">{k}</span>
+                    <div className="text-[11px] text-emerald-600/70">{k}</div>
                     <div className="font-semibold text-emerald-900">{v}</div>
                   </div>
                 ))}
               </div>
               {lead.statusId === 8 && canUpdate && (
-                <p className="mt-4 text-xs text-emerald-700 bg-white/60 rounded-lg px-3 py-2">
-                  Hồ sơ đã phê duyệt — bấm <b>Cập nhật trạng thái</b> để chuyển <b>Hồ sơ END</b>.
+                <p className="mt-3 text-[11px] text-emerald-700 bg-white/50 rounded-lg px-2.5 py-1.5">
+                  Đã phê duyệt → Cập nhật TT để <b>Hoàn thành (Giải ngân)</b> và nhập số hợp đồng.
                 </p>
               )}
             </div>
           )}
         </div>
 
+        {/* History */}
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-soft p-6 sticky top-6">
-            <h2 className="font-semibold text-slate-800 mb-4">Lịch sử</h2>
-            <div className="space-y-0">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-soft p-4 sticky top-16">
+            <h2 className="text-sm font-semibold text-slate-700 mb-3">Lịch sử</h2>
+            <div className="space-y-0 max-h-[420px] overflow-y-auto">
               {[...lead.history].reverse().map((h: any, i: number) => {
                 const st = STATUSES.find((s) => s.id === h.statusId);
                 return (
-                  <div key={i} className="relative pl-6 pb-5 last:pb-0">
-                    <div className="absolute left-1.5 top-1.5 bottom-0 w-px bg-slate-200" />
-                    <div className="absolute left-0 top-1.5 w-3 h-3 rounded-full bg-nn-600 ring-4 ring-nn-100" />
-                    <div className="text-sm font-medium text-slate-800">{st?.name}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">{h.note}</div>
-                    <div className="text-[11px] text-slate-400 mt-1">{h.by} · {new Date(h.at).toLocaleString("vi-VN")}</div>
+                  <div key={i} className="relative pl-5 pb-4 last:pb-0">
+                    <div className="absolute left-1 top-1.5 bottom-0 w-px bg-slate-100" />
+                    <div className="absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full bg-nn-600 ring-2 ring-nn-100" />
+                    <div className="text-sm font-medium text-slate-800 leading-tight">{st?.name}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{h.note}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">{h.by} · {new Date(h.at).toLocaleString("vi-VN")}</div>
                   </div>
                 );
               })}
@@ -265,122 +341,197 @@ export default function DetailPage() {
       {/* Status modal */}
       {modal === "status" && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl animate-slide-up">
-            <h3 className="font-bold text-lg mb-4">Cập nhật trạng thái</h3>
-            <label className="block text-sm font-medium mb-1.5">Trạng thái mới</label>
-            <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl text-sm mb-3">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl animate-slide-up">
+            <h3 className="font-bold text-base mb-3">Cập nhật trạng thái</h3>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Trạng thái mới</label>
+            <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm mb-3">
               {nextIds.map((nid: number) => {
                 const s = STATUSES.find((x) => x.id === nid);
                 return <option key={nid} value={nid}>{s?.name}</option>;
               })}
             </select>
-            <label className="block text-sm font-medium mb-1.5">Ghi chú *</label>
-            <select value={noteForm} onChange={(e) => setNoteForm(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl text-sm mb-3">
+            <label className="block text-xs font-medium text-slate-500 mb-1">Ghi chú *</label>
+            <select value={noteForm} onChange={(e) => setNoteForm(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm mb-3">
               <option value="">-- Chọn form --</option>
               {notes.map((n) => <option key={n.code} value={n.code}>{n.code} – {n.content}</option>)}
               <option value="CUSTOM">Ghi chú khác...</option>
             </select>
             {noteForm === "CUSTOM" && (
               <textarea value={customNote} onChange={(e) => setCustomNote(e.target.value)} rows={2}
-                className="w-full px-3 py-2 border rounded-xl text-sm mb-3" placeholder="Nhập ghi chú..." />
+                className="w-full px-3 py-2 border rounded-lg text-sm mb-3" placeholder="Nhập ghi chú..." />
             )}
-            <div className="flex justify-end gap-2 mt-2">
-              <button onClick={() => setModal(null)} className="px-4 py-2 border rounded-xl text-sm">Hủy</button>
-              <button onClick={doStatus} className="px-4 py-2 bg-nn-700 text-white rounded-xl text-sm font-medium">Xác nhận</button>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setModal(null)} className="px-3.5 py-2 border rounded-lg text-sm">Hủy</button>
+              <button onClick={doStatus} className="px-3.5 py-2 bg-nn-700 text-white rounded-lg text-sm font-medium">Xác nhận</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Approve modal */}
+      {/* Approve modal — KHÔNG có số HĐ */}
       {modal === "approve" && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-lg mb-4">Thông tin phê duyệt</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <label className="block text-xs font-medium mb-1">Sản phẩm *</label>
-                <select value={ap.sanPham} onChange={(e) => pickProduct(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-xl text-sm">
-                  <option value="">-- Chọn sản phẩm --</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.name}>{p.name} ({p.laiSuat}%/năm)</option>
-                  ))}
+          <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-base mb-3">Phê duyệt khoản vay</h3>
+            <div className="space-y-2.5">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Sản phẩm *</label>
+                <select value={ap.sanPham} onChange={(e) => pickProduct(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <option value="">-- Chọn --</option>
+                  {products.map((p) => <option key={p.id} value={p.name}>{p.name} ({p.laiSuat}%)</option>)}
                 </select>
               </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-medium mb-1">ID RLOS (tuỳ chọn)</label>
-                <input value={ap.idRlos} onChange={(e) => setAp({ ...ap, idRlos: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm font-mono" placeholder="RLOS-xxxx" />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-xs font-medium mb-1">Số hợp đồng (tuỳ chọn)</label>
-                <input value={ap.soHopDong} onChange={(e) => setAp({ ...ap, soHopDong: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm font-mono" placeholder="HD-xxxx" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Số tiền duyệt *</label>
-                <input value={ap.soTienDuyet}
-                  onChange={(e) => setAp({ ...ap, soTienDuyet: fmtInput(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm" placeholder="50.000.000" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Thực nhận *</label>
-                <input value={ap.thucNhan}
-                  onChange={(e) => setAp({ ...ap, thucNhan: fmtInput(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm" placeholder="48.000.000" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Lãi suất %/năm *</label>
-                <input type="number" value={ap.laiSuat} readOnly
-                  className="w-full px-3 py-2 border rounded-xl text-sm bg-slate-50" placeholder="Chọn SP → tự điền" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Thời hạn (tháng) *</label>
-                <input type="number" value={ap.thoiHan} onChange={(e) => setAp({ ...ap, thoiHan: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Ngày trả hàng tháng *</label>
-                <input type="number" min={1} max={28} value={ap.ngayTra} onChange={(e) => setAp({ ...ap, ngayTra: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">Trả hàng tháng *</label>
-                <input value={ap.traThang}
-                  onChange={(e) => setAp({ ...ap, traThang: fmtInput(e.target.value) })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm" placeholder="4.500.000" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1">BHKV *</label>
-                <select value={ap.bhkv} onChange={(e) => setAp({ ...ap, bhkv: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-xl text-sm">
-                  <option>Có</option><option>Không</option>
-                </select>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Số tiền duyệt *</label>
+                  <input value={ap.soTienDuyet} onChange={(e) => setAp({ ...ap, soTienDuyet: fmtInput(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="50.000.000" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Thực nhận *</label>
+                  <input value={ap.thucNhan} onChange={(e) => setAp({ ...ap, thucNhan: fmtInput(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" placeholder="48.000.000" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Lãi suất % *</label>
+                  <input type="number" value={ap.laiSuat} readOnly className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Kỳ hạn (tháng) *</label>
+                  <input type="number" value={ap.thoiHan} onChange={(e) => setAp({ ...ap, thoiHan: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Ngày trả *</label>
+                  <input type="number" min={1} max={28} value={ap.ngayTra} onChange={(e) => setAp({ ...ap, ngayTra: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Trả tháng *</label>
+                  <input value={ap.traThang} onChange={(e) => setAp({ ...ap, traThang: fmtInput(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">BHKV *</label>
+                  <select value={ap.bhkv} onChange={(e) => setAp({ ...ap, bhkv: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm">
+                    <option>Có</option><option>Không</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">ID RLOS</label>
+                  <input value={ap.idRlos} onChange={(e) => setAp({ ...ap, idRlos: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono" placeholder="Tuỳ chọn" />
+                </div>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setModal(null)} className="px-4 py-2 border rounded-xl text-sm">Hủy</button>
-              <button onClick={doApprove} className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium">Lưu & Duyệt</button>
+              <button onClick={() => setModal(null)} className="px-3.5 py-2 border rounded-lg text-sm">Hủy</button>
+              <button onClick={doApprove} className="px-3.5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Lưu & Duyệt</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Assign modal */}
+      {/* Disburse modal — Số hợp đồng */}
+      {modal === "disburse" && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl animate-slide-up">
+            <div className="flex items-center gap-2 mb-3">
+              <FileCheck className="text-emerald-600" size={20} />
+              <h3 className="font-bold text-base">Giải ngân · Số hợp đồng</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">Nhập số hợp đồng khi hoàn thành giải ngân.</p>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Số hợp đồng *</label>
+            <input value={soHopDong} onChange={(e) => setSoHopDong(e.target.value)} autoFocus
+              className="w-full px-3 py-2.5 border rounded-lg text-sm font-mono mb-4" placeholder="HD-2026-xxxx" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setModal(null)} className="px-3.5 py-2 border rounded-lg text-sm">Hủy</button>
+              <button onClick={doDisburse} className="px-3.5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Xác nhận giải ngân</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admin edit approval */}
+      {modal === "editAp" && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <form onSubmit={saveApprovalEdit} className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-base mb-3">Sửa thông tin phê duyệt</h3>
+            <p className="text-[11px] text-slate-400 mb-3">Admin sửa trực tiếp, không cần chuyển bước.</p>
+            <div className="space-y-2.5">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Sản phẩm</label>
+                <select value={ap.sanPham} onChange={(e) => pickProduct(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm">
+                  <option value="">-- Chọn --</option>
+                  {products.map((p) => <option key={p.id} value={p.name}>{p.name} ({p.laiSuat}%)</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  ["soTienDuyet", "Số tiền duyệt", true],
+                  ["thucNhan", "Thực nhận", true],
+                  ["traThang", "Trả tháng", true],
+                ].map(([k, l]) => (
+                  <div key={k as string}>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">{l as string}</label>
+                    <input value={(ap as any)[k]} onChange={(e) => setAp({ ...ap, [k as string]: fmtInput(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg text-sm" />
+                  </div>
+                ))}
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Lãi suất %</label>
+                  <input type="number" value={ap.laiSuat} onChange={(e) => setAp({ ...ap, laiSuat: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Kỳ hạn</label>
+                  <input type="number" value={ap.thoiHan} onChange={(e) => setAp({ ...ap, thoiHan: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Ngày trả</label>
+                  <input type="number" value={ap.ngayTra} onChange={(e) => setAp({ ...ap, ngayTra: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">BHKV</label>
+                  <select value={ap.bhkv} onChange={(e) => setAp({ ...ap, bhkv: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm">
+                    <option>Có</option><option>Không</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">ID RLOS</label>
+                  <input value={ap.idRlos} onChange={(e) => setAp({ ...ap, idRlos: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Số hợp đồng</label>
+                  <input value={soHopDong} onChange={(e) => setSoHopDong(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button type="button" onClick={() => setModal(null)} className="px-3.5 py-2 border rounded-lg text-sm">Hủy</button>
+              <button type="submit" className="px-3.5 py-2 bg-nn-700 text-white rounded-lg text-sm font-medium">Lưu</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {modal === "assign" && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-slide-up">
-            <h3 className="font-bold text-lg mb-4">{lead.tsaId ? "Đổi TSA" : "Gán TSA"}</h3>
-            <select value={tsaId} onChange={(e) => setTsaId(e.target.value)} className="w-full px-3 py-2.5 border rounded-xl text-sm mb-4">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl animate-slide-up">
+            <h3 className="font-bold text-base mb-3">{lead.tsaId ? "Đổi TSA" : "Gán TSA"}</h3>
+            <select value={tsaId} onChange={(e) => setTsaId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm mb-4">
               <option value="">-- Chọn TSA --</option>
               {users.filter((u: any) => u.role === "TSA").map((u: any) => (
                 <option key={u.id} value={u.id}>{u.hoTen}</option>
               ))}
             </select>
             <div className="flex justify-end gap-2">
-              <button onClick={() => setModal(null)} className="px-4 py-2 border rounded-xl text-sm">Hủy</button>
-              <button onClick={doAssign} disabled={!tsaId} className="px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium disabled:opacity-50">Gán</button>
+              <button onClick={() => setModal(null)} className="px-3.5 py-2 border rounded-lg text-sm">Hủy</button>
+              <button onClick={doAssign} disabled={!tsaId} className="px-3.5 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium disabled:opacity-50">Gán</button>
             </div>
           </div>
         </div>
@@ -395,36 +546,36 @@ export default function DetailPage() {
               body: JSON.stringify({ ...editForm, soTienYeuCau: Number(String(editForm.soTienYeuCau).replace(/\D/g, "")) }),
             });
             setEditOpen(false); load();
-          }} className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-lg mb-4">Sửa thông tin Lead</h3>
-            <div className="grid grid-cols-2 gap-3">
+          }} className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-base mb-3">Sửa thông tin Lead</h3>
+            <div className="grid grid-cols-2 gap-2.5">
               {[
-                ["hoTen","Họ tên"],["cccd","CCCD"],["sdt","SĐT"],["ngaySinh","Ngày sinh"],
-                ["noiCap","Nơi cấp"],["ngayCap","Ngày cấp"],["tinhThanh","Tỉnh thành"],
-                ["soTienYeuCau","Số tiền YC"],["idRlos","ID RLOS"],
-              ].map(([k,l]) => (
+                ["hoTen", "Họ tên"], ["cccd", "CCCD"], ["sdt", "SĐT"], ["ngaySinh", "Ngày sinh"],
+                ["noiCap", "Nơi cấp"], ["ngayCap", "Ngày cấp"], ["tinhThanh", "Tỉnh"],
+                ["soTienYeuCau", "Số tiền YC"], ["idRlos", "ID RLOS"],
+              ].map(([k, l]) => (
                 <div key={k}>
-                  <label className="block text-xs font-medium mb-1">{l}</label>
-                  <input value={editForm[k]||""} onChange={(e)=>setEditForm({...editForm,[k]:e.target.value})}
-                    className="w-full px-3 py-2 border rounded-xl text-sm" />
+                  <label className="block text-xs font-medium text-slate-500 mb-1">{l}</label>
+                  <input value={editForm[k] || ""} onChange={(e) => setEditForm({ ...editForm, [k]: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
                 </div>
               ))}
               <div>
-                <label className="block text-xs font-medium mb-1">Giới tính</label>
-                <select value={editForm.gioiTinh||""} onChange={(e)=>setEditForm({...editForm,gioiTinh:e.target.value})}
-                  className="w-full px-3 py-2 border rounded-xl text-sm">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Giới tính</label>
+                <select value={editForm.gioiTinh || ""} onChange={(e) => setEditForm({ ...editForm, gioiTinh: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm">
                   <option>Nam</option><option>Nữ</option>
                 </select>
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium mb-1">Ghi chú CTV</label>
-                <textarea value={editForm.ghiChuCTV||""} onChange={(e)=>setEditForm({...editForm,ghiChuCTV:e.target.value})}
-                  rows={2} className="w-full px-3 py-2 border rounded-xl text-sm" />
+                <label className="block text-xs font-medium text-slate-500 mb-1">Ghi chú CTV</label>
+                <textarea value={editForm.ghiChuCTV || ""} onChange={(e) => setEditForm({ ...editForm, ghiChuCTV: e.target.value })}
+                  rows={2} className="w-full px-3 py-2 border rounded-lg text-sm" />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button type="button" onClick={()=>setEditOpen(false)} className="px-4 py-2 border rounded-xl text-sm">Hủy</button>
-              <button type="submit" className="px-4 py-2 bg-nn-700 text-white rounded-xl text-sm font-medium">Lưu</button>
+              <button type="button" onClick={() => setEditOpen(false)} className="px-3.5 py-2 border rounded-lg text-sm">Hủy</button>
+              <button type="submit" className="px-3.5 py-2 bg-nn-700 text-white rounded-lg text-sm font-medium">Lưu</button>
             </div>
           </form>
         </div>
@@ -432,4 +583,3 @@ export default function DetailPage() {
     </Shell>
   );
 }
-

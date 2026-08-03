@@ -246,26 +246,26 @@ export default function LeadsPage() {
         </select>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-soft overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-100 shadow-soft overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-slate-500">
+            <tr className="border-b border-slate-100 text-left text-slate-400 bg-slate-50/60">
               {visible.map((c) => (
-                <th key={c.key} className="px-4 py-3 font-medium whitespace-nowrap">{c.label}</th>
+                <th key={c.key} className="px-3 py-2.5 font-medium whitespace-nowrap text-xs uppercase tracking-wide">{c.label}</th>
               ))}
               <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((l) => (
-              <tr key={l.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition">
+              <tr key={l.id} className="border-b border-slate-50/80 hover:bg-nn-50/40 transition">
                 {visible.map((c) => (
-                  <td key={c.key} className="px-4 py-3">{cell(l, c.key)}</td>
+                  <td key={c.key} className="px-3 py-2.5">{cell(l, c.key)}</td>
                 ))}
-                <td className="px-4 py-3">
+                <td className="px-3 py-2.5">
                   <Link href={`/leads/${l.id}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-nn-50 text-nn-700 text-xs font-medium hover:bg-nn-100 transition">
-                    <Eye size={13} /> Chi tiết
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-nn-50 text-nn-700 text-xs font-medium hover:bg-nn-100 transition">
+                    <Eye size={12} /> Xem
                   </Link>
                 </td>
               </tr>
