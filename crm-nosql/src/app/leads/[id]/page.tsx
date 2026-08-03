@@ -37,6 +37,7 @@ export default function DetailPage() {
   const [customNote, setCustomNote] = useState("");
   const [tsaId, setTsaId] = useState("");
   const [soHopDong, setSoHopDong] = useState("");
+  const [ngayGiaiNgan, setNgayGiaiNgan] = useState("");
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [ap, setAp] = useState({
@@ -84,6 +85,7 @@ export default function DetailPage() {
     if (sid === 9) {
       setPending({ statusId: sid, note });
       setSoHopDong(lead.approval?.soHopDong || "");
+      setNgayGiaiNgan(lead.approval?.ngayGiaiNgan || new Date().toISOString().slice(0, 10));
       setModal("disburse");
       return;
     }
@@ -127,7 +129,12 @@ export default function DetailPage() {
   async function doDisburse() {
     if (!pending) return;
     if (!soHopDong.trim()) { alert("Nhập số hợp đồng khi giải ngân"); return; }
-    const approval = { ...(lead.approval || {}), soHopDong: soHopDong.trim() };
+    if (!ngayGiaiNgan) { alert("Chọn ngày giải ngân"); return; }
+    const approval = {
+      ...(lead.approval || {}),
+      soHopDong: soHopDong.trim(),
+      ngayGiaiNgan: ngayGiaiNgan,
+    };
     await fetch(`/api/leads/${id}/status`, {
       method: "PATCH", headers: authHeaders(),
       body: JSON.stringify({ statusId: pending.statusId, note: pending.note, approval }),
@@ -148,6 +155,7 @@ export default function DetailPage() {
       sanPham: ap.sanPham,
       idRlos: ap.idRlos || lead.approval?.idRlos || "",
       soHopDong: soHopDong || lead.approval?.soHopDong || "",
+      ngayGiaiNgan: ngayGiaiNgan || lead.approval?.ngayGiaiNgan || "",
     };
     // Admin save approval without status change
     await fetch(`/api/leads/${id}/approval`, {
@@ -177,6 +185,7 @@ export default function DetailPage() {
       idRlos: a.idRlos || lead.idRlos || "",
     });
     setSoHopDong(a.soHopDong || "");
+    setNgayGiaiNgan(a.ngayGiaiNgan || "");
     setModal("editAp");
   }
 
@@ -300,6 +309,7 @@ export default function DetailPage() {
                   ["BHKV", lead.approval.bhkv || "—"],
                   ["ID RLOS", lead.approval.idRlos || lead.idRlos || "—"],
                   ...(lead.approval.soHopDong ? [["Số hợp đồng", lead.approval.soHopDong]] as [string, string][] : []),
+                  ...(lead.approval.ngayGiaiNgan ? [["Ngày giải ngân", lead.approval.ngayGiaiNgan]] as [string, string][] : []),
                 ].map(([k, v]) => (
                   <div key={k}>
                     <div className="text-[11px] text-emerald-600/70">{k}</div>
@@ -438,12 +448,16 @@ export default function DetailPage() {
           <div className="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl animate-slide-up">
             <div className="flex items-center gap-2 mb-3">
               <FileCheck className="text-emerald-600" size={20} />
-              <h3 className="font-bold text-base">Giải ngân · Số hợp đồng</h3>
+              <h3 className="font-bold text-base">Giải ngân</h3>
             </div>
-            <p className="text-xs text-slate-500 mb-3">Nhập số hợp đồng khi hoàn thành giải ngân.</p>
+            <p className="text-xs text-slate-500 mb-3">Nhập số hợp đồng & ngày giải ngân.</p>
             <label className="block text-xs font-medium text-slate-500 mb-1">Số hợp đồng *</label>
             <input value={soHopDong} onChange={(e) => setSoHopDong(e.target.value)} autoFocus
-              className="w-full px-3 py-2.5 border rounded-lg text-sm font-mono mb-4" placeholder="HD-2026-xxxx" />
+              className="w-full px-3 py-2.5 border rounded-lg text-sm font-mono mb-3" placeholder="HD-2026-xxxx" />
+            <label className="block text-xs font-medium text-slate-500 mb-1">Ngày giải ngân *</label>
+            <input type="date" value={ngayGiaiNgan} onChange={(e) => setNgayGiaiNgan(e.target.value)}
+              className="w-full px-3 py-2.5 border rounded-lg text-sm mb-4" />
+            <p className="text-[11px] text-slate-400 -mt-3 mb-4">Mặc định hôm nay — có thể chọn lại.</p>
             <div className="flex justify-end gap-2">
               <button onClick={() => setModal(null)} className="px-3.5 py-2 border rounded-lg text-sm">Hủy</button>
               <button onClick={doDisburse} className="px-3.5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium">Xác nhận giải ngân</button>
@@ -508,6 +522,11 @@ export default function DetailPage() {
                   <label className="block text-xs font-medium text-slate-500 mb-1">Số hợp đồng</label>
                   <input value={soHopDong} onChange={(e) => setSoHopDong(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg text-sm font-mono" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Ngày giải ngân</label>
+                  <input type="date" value={ngayGiaiNgan} onChange={(e) => setNgayGiaiNgan(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm" />
                 </div>
               </div>
             </div>

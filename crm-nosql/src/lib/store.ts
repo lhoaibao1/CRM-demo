@@ -6,7 +6,7 @@ export type User = {
 export type Approval = {
   soTienDuyet: number; bhkv: string; thucNhan: number;
   laiSuat: number; thoiHan: number; ngayTra: number; traThang: number;
-  sanPham: string; idRlos: string; soHopDong: string;
+  sanPham: string; idRlos: string; soHopDong: string; ngayGiaiNgan: string;
 };
 export type Product = { id: string; name: string; laiSuat: number; active: boolean };
 export type HistoryItem = { statusId: number; note: string; by: string; at: string };
@@ -92,7 +92,7 @@ function seedLeads(): Lead[] {
         { statusId: 6, note: "UW01 – Hồ sơ đang thẩm định", by: "Trần Thị TSA", at: now },
         { statusId: 8, note: "UW02 – Hồ sơ được duyệt", by: "Trần Thị TSA", at: now },
       ],
-      approval: { soTienDuyet: 50000000, bhkv: "Có", thucNhan: 48000000, laiSuat: 32, thoiHan: 12, ngayTra: 5, traThang: 4500000, sanPham: "Easy Cash 32", idRlos: "RLOS-2026-001", soHopDong: "HD-2026-001" },
+      approval: { soTienDuyet: 50000000, bhkv: "Có", thucNhan: 48000000, laiSuat: 32, thoiHan: 12, ngayTra: 5, traThang: 4500000, sanPham: "Easy Cash 32", idRlos: "RLOS-2026-001", soHopDong: "HD-2026-001", ngayGiaiNgan: "2026-08-01" },
     },
     {
       id: "LD-20260801-002", hoTen: "Lê Hoàng Nam", cccd: "001987654321", sdt: "0912345678",

@@ -13,7 +13,7 @@ type Lead = {
   tinhThanh?: string; gioiTinh?: string; ngaySinh?: string; noiCap?: string; ngayCap?: string;
   ghiChuCTV?: string;
   approval?: {
-    sanPham?: string; soHopDong?: string; idRlos?: string; soTienDuyet?: number;
+    sanPham?: string; soHopDong?: string; ngayGiaiNgan?: string; idRlos?: string; soTienDuyet?: number;
     thucNhan?: number; laiSuat?: number; thoiHan?: number; ngayTra?: number;
     traThang?: number; bhkv?: string;
   } | null;
@@ -164,6 +164,7 @@ export default function LeadsPage() {
         "Trạng thái": stName,
         "Sản phẩm": ap?.sanPham || "",
         "Số hợp đồng": ap?.soHopDong || "",
+        "Ngày giải ngân": ap?.ngayGiaiNgan || "",
         "Số tiền duyệt": ap?.soTienDuyet ?? "",
         "Thực nhận": ap?.thucNhan ?? "",
         "Lãi suất %": ap?.laiSuat ?? "",
