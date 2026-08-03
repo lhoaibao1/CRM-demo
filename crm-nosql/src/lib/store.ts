@@ -6,7 +6,9 @@ export type User = {
 export type Approval = {
   soTienDuyet: number; bhkv: string; thucNhan: number;
   laiSuat: number; thoiHan: number; ngayTra: number; traThang: number;
+  sanPham: string; idRlos: string;
 };
+export type Product = { id: string; name: string; laiSuat: number; active: boolean };
 export type HistoryItem = { statusId: number; note: string; by: string; at: string };
 export type Lead = {
   id: string; hoTen: string; cccd: string; sdt: string; ngaySinh: string;
@@ -48,6 +50,15 @@ export const WORKFLOW: Record<number, number[]> = {
   1: [2, 3, 4], 2: [], 3: [], 4: [5, 10], 5: [6], 6: [7, 8, 10], 7: [], 8: [9], 9: [], 10: [],
 };
 
+const DEFAULT_PRODUCTS: Product[] = [
+  { id: "p1", name: "Easy Cash 32", laiSuat: 32, active: true },
+  { id: "p2", name: "Easy Cash 37", laiSuat: 37, active: true },
+  { id: "p3", name: "Cashloan Civil Tight", laiSuat: 29, active: true },
+  { id: "p4", name: "Cashloan Civil Easy", laiSuat: 35, active: true },
+  { id: "p5", name: "Cashloan Life Insurance Flex", laiSuat: 35, active: true },
+  { id: "p6", name: "Cashloan Life Insurance Secure", laiSuat: 29, active: true },
+];
+
 const DEFAULT_NOTES: NoteForm[] = [
   { code: "D01", content: "Khách hàng không nghe máy" },
   { code: "D02", content: "Thuê bao" },
@@ -80,7 +91,7 @@ function seedLeads(): Lead[] {
         { statusId: 6, note: "UW01 – Hồ sơ đang thẩm định", by: "Trần Thị TSA", at: now },
         { statusId: 8, note: "UW02 – Hồ sơ được duyệt", by: "Trần Thị TSA", at: now },
       ],
-      approval: { soTienDuyet: 50000000, bhkv: "Có", thucNhan: 48000000, laiSuat: 18, thoiHan: 12, ngayTra: 5, traThang: 4500000 },
+      approval: { soTienDuyet: 50000000, bhkv: "Có", thucNhan: 48000000, laiSuat: 32, thoiHan: 12, ngayTra: 5, traThang: 4500000, sanPham: "Easy Cash 32", idRlos: "RLOS-2026-001" },
     },
     {
       id: "LD-20260801-002", hoTen: "Lê Hoàng Nam", cccd: "001987654321", sdt: "0912345678",
@@ -108,10 +119,10 @@ function seedLeads(): Lead[] {
   ];
 }
 
-type Store = { users: User[]; leads: Lead[]; notes: NoteForm[]; notifications: Notification[] };
+type Store = { users: User[]; leads: Lead[]; notes: NoteForm[]; notifications: Notification[]; products: Product[] };
 const g = globalThis as unknown as { __nnf2?: Store };
 if (!g.__nnf2) {
-  g.__nnf2 = { users: USERS, leads: seedLeads(), notes: [...DEFAULT_NOTES], notifications: [] };
+  g.__nnf2 = { users: USERS, leads: seedLeads(), notes: [...DEFAULT_NOTES], notifications: [], products: [...DEFAULT_PRODUCTS] };
 }
 
 function uid() { return "n" + Date.now() + Math.random().toString(36).slice(2, 7); }
@@ -163,4 +174,14 @@ export const db = {
     });
   },
   unreadCount: (userId: string) => g.__nnf2!.notifications.filter((n) => n.userId === userId && !n.read).length,
+  products: () => g.__nnf2!.products,
+  addProduct: (p: Product) => { g.__nnf2!.products.push(p); return p; },
+  updateProduct: (id: string, patch: Partial<Product>) => {
+    const i = g.__nnf2!.products.findIndex((x) => x.id === id);
+    if (i < 0) return null;
+    g.__nnf2!.products[i] = { ...g.__nnf2!.products[i], ...patch };
+    return g.__nnf2!.products[i];
+  },
+  removeProduct: (id: string) => { g.__nnf2!.products = g.__nnf2!.products.filter((p) => p.id !== id); },
 };
+
