@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import Shell, { authHeaders, useUser } from "@/components/Shell";
 import StatusBadge from "@/components/StatusBadge";
 import { STATUSES, WORKFLOW } from "@/lib/store";
-import { ArrowLeft, RefreshCw, UserPlus } from "lucide-react";
+import { ArrowLeft, RefreshCw, UserPlus, Pencil } from "lucide-react";
 import WorkflowBar from "@/components/WorkflowBar";
 
 type Lead = any;
@@ -41,8 +41,10 @@ export default function DetailPage() {
   const [ap, setAp] = useState({
     soTienDuyet: "", thucNhan: "", traThang: "",
     bhkv: "Có", laiSuat: "", thoiHan: "", ngayTra: "",
-    sanPham: "", idRlos: "",
+    sanPham: "", idRlos: "", soHopDong: "",
   });
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<{ statusId: number; note: string } | null>(null);
 
   async function load() {
@@ -61,6 +63,7 @@ export default function DetailPage() {
   const canUpdate = user && (user.role === "Admin" || (user.role === "TSA" && lead?.tsaId === user.id)) && nextIds.length > 0;
   // Admin gán TSA bất kỳ Lead nào
   const canAssign = user?.role === "Admin" && lead;
+  const canEdit = user?.role === "Admin" && lead;
 
   function pickProduct(name: string) {
     const p = products.find((x) => x.name === name);
@@ -87,8 +90,8 @@ export default function DetailPage() {
 
   async function doApprove() {
     if (!pending) return;
-    if (!ap.sanPham || !ap.idRlos || !ap.soTienDuyet || !ap.thucNhan || !ap.laiSuat || !ap.thoiHan || !ap.ngayTra || !ap.traThang) {
-      alert("Điền đủ: Sản phẩm, ID RLOS, số tiền, lãi suất, kỳ hạn..."); return;
+    if (!ap.sanPham || !ap.soTienDuyet || !ap.thucNhan || !ap.laiSuat || !ap.thoiHan || !ap.ngayTra || !ap.traThang) {
+      alert("Điền đủ: Sản phẩm, số tiền, lãi suất, kỳ hạn..."); return;
     }
     const approval = {
       soTienDuyet: parseMoney(ap.soTienDuyet),
@@ -100,11 +103,18 @@ export default function DetailPage() {
       ngayTra: Number(ap.ngayTra),
       sanPham: ap.sanPham,
       idRlos: ap.idRlos,
+      soHopDong: ap.soHopDong || "",
     };
     await fetch(`/api/leads/${id}/status`, {
       method: "PATCH", headers: authHeaders(),
       body: JSON.stringify({ statusId: pending.statusId, note: pending.note, approval }),
     });
+    if (ap.idRlos) {
+      await fetch(`/api/leads/${id}`, {
+        method: "PATCH", headers: authHeaders(),
+        body: JSON.stringify({ idRlos: ap.idRlos }),
+      });
+    }
     setModal(null); setPending(null); load();
   }
 
@@ -157,6 +167,20 @@ export default function DetailPage() {
               <UserPlus size={15} /> {lead.tsaId ? "Đổi TSA" : "Gán TSA"}
             </button>
           )}
+          {canEdit && (
+            <button onClick={() => {
+              setEditForm({
+                hoTen: lead.hoTen, cccd: lead.cccd, sdt: lead.sdt, ngaySinh: lead.ngaySinh,
+                noiCap: lead.noiCap, ngayCap: lead.ngayCap, gioiTinh: lead.gioiTinh,
+                tinhThanh: lead.tinhThanh, soTienYeuCau: String(lead.soTienYeuCau),
+                idRlos: lead.idRlos || "", ghiChuCTV: lead.ghiChuCTV || "",
+              });
+              setEditOpen(true);
+            }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-sm font-medium">
+              <Pencil size={15} /> Sửa thông tin
+            </button>
+          )}
         </div>
       </div>
 
@@ -170,7 +194,7 @@ export default function DetailPage() {
               {[
                 ["CCCD", lead.cccd], ["SĐT", lead.sdt], ["Ngày sinh", lead.ngaySinh], ["Giới tính", lead.gioiTinh],
                 ["Nơi cấp", lead.noiCap], ["Ngày cấp", lead.ngayCap], ["Tỉnh thành", lead.tinhThanh],
-                ["Số tiền yêu cầu", formatMoney(lead.soTienYeuCau)], ["CTV", name(lead.ctvId)], ["TSA", name(lead.tsaId)],
+                ["Số tiền yêu cầu", formatMoney(lead.soTienYeuCau)], ["ID RLOS", lead.idRlos || "—"], ["CTV", name(lead.ctvId)], ["TSA", name(lead.tsaId)],
               ].map(([k, v]) => (
                 <div key={k} className="flex flex-col">
                   <span className="text-xs text-slate-400 mb-0.5">{k}</span>
@@ -192,6 +216,7 @@ export default function DetailPage() {
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
                 {[
                   ["Sản phẩm", lead.approval.sanPham || "—"],
+                  ["Số hợp đồng", lead.approval.soHopDong || "—"],
                   ["ID RLOS", lead.approval.idRlos || "—"],
                   ["Số tiền duyệt", formatMoney(lead.approval.soTienDuyet)],
                   ["BHKV", lead.approval.bhkv],
@@ -284,9 +309,14 @@ export default function DetailPage() {
                 </select>
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium mb-1">ID RLOS *</label>
+                <label className="block text-xs font-medium mb-1">ID RLOS (tuỳ chọn)</label>
                 <input value={ap.idRlos} onChange={(e) => setAp({ ...ap, idRlos: e.target.value })}
                   className="w-full px-3 py-2 border rounded-xl text-sm font-mono" placeholder="RLOS-xxxx" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium mb-1">Số hợp đồng (tuỳ chọn)</label>
+                <input value={ap.soHopDong} onChange={(e) => setAp({ ...ap, soHopDong: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-xl text-sm font-mono" placeholder="HD-xxxx" />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1">Số tiền duyệt *</label>
@@ -355,6 +385,51 @@ export default function DetailPage() {
           </div>
         </div>
       )}
+
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            await fetch(`/api/leads/${id}`, {
+              method: "PATCH", headers: authHeaders(),
+              body: JSON.stringify({ ...editForm, soTienYeuCau: Number(String(editForm.soTienYeuCau).replace(/\D/g, "")) }),
+            });
+            setEditOpen(false); load();
+          }} className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="font-bold text-lg mb-4">Sửa thông tin Lead</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                ["hoTen","Họ tên"],["cccd","CCCD"],["sdt","SĐT"],["ngaySinh","Ngày sinh"],
+                ["noiCap","Nơi cấp"],["ngayCap","Ngày cấp"],["tinhThanh","Tỉnh thành"],
+                ["soTienYeuCau","Số tiền YC"],["idRlos","ID RLOS"],
+              ].map(([k,l]) => (
+                <div key={k}>
+                  <label className="block text-xs font-medium mb-1">{l}</label>
+                  <input value={editForm[k]||""} onChange={(e)=>setEditForm({...editForm,[k]:e.target.value})}
+                    className="w-full px-3 py-2 border rounded-xl text-sm" />
+                </div>
+              ))}
+              <div>
+                <label className="block text-xs font-medium mb-1">Giới tính</label>
+                <select value={editForm.gioiTinh||""} onChange={(e)=>setEditForm({...editForm,gioiTinh:e.target.value})}
+                  className="w-full px-3 py-2 border rounded-xl text-sm">
+                  <option>Nam</option><option>Nữ</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium mb-1">Ghi chú CTV</label>
+                <textarea value={editForm.ghiChuCTV||""} onChange={(e)=>setEditForm({...editForm,ghiChuCTV:e.target.value})}
+                  rows={2} className="w-full px-3 py-2 border rounded-xl text-sm" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button type="button" onClick={()=>setEditOpen(false)} className="px-4 py-2 border rounded-xl text-sm">Hủy</button>
+              <button type="submit" className="px-4 py-2 bg-nn-700 text-white rounded-xl text-sm font-medium">Lưu</button>
+            </div>
+          </form>
+        </div>
+      )}
     </Shell>
   );
 }
+

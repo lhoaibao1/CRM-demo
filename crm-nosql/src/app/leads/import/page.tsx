@@ -25,10 +25,16 @@ export default function ImportPage() {
     } finally { setLoading(false); }
   }
 
-  const fields = [
-    ["hoTen","Họ tên *","text"], ["cccd","Số CCCD *","text"], ["sdt","Số điện thoại *","text"],
-    ["ngaySinh","Ngày sinh *","date"], ["noiCap","Nơi cấp *","text"], ["ngayCap","Ngày cấp *","date"],
-    ["tinhThanh","Tỉnh thành *","text"], ["soTienYeuCau","Số tiền yêu cầu *","number"],
+  const fields: [string, string, string, boolean][] = [
+    ["hoTen", "Họ tên *", "text", true],
+    ["cccd", "Số CCCD *", "text", true],
+    ["sdt", "Số điện thoại *", "text", true],
+    ["ngaySinh", "Ngày sinh *", "date", true],
+    ["noiCap", "Nơi cấp *", "text", true],
+    ["ngayCap", "Ngày cấp *", "date", true],
+    ["tinhThanh", "Tỉnh thành *", "text", true],
+    ["soTienYeuCau", "Số tiền yêu cầu *", "number", true],
+    ["idRlos", "ID RLOS (có thể bỏ trống)", "text", false],
   ];
 
   return (
@@ -39,10 +45,10 @@ export default function ImportPage() {
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Import Lead mới</h1>
       <form onSubmit={submit} className="bg-white rounded-2xl border border-slate-100 shadow-soft p-6 max-w-3xl">
         <div className="grid sm:grid-cols-2 gap-4">
-          {fields.map(([name, label, type]) => (
+          {fields.map(([name, label, type, req]) => (
             <div key={name}>
               <label className="block text-sm font-medium text-slate-600 mb-1.5">{label}</label>
-              <input type={type} required value={form[name]||""} onChange={(e) => set(name, e.target.value)}
+              <input type={type} required={req} value={form[name] || ""} onChange={(e) => set(name, e.target.value)}
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:border-nn-500 focus:ring-4 focus:ring-nn-500/10" />
             </div>
           ))}
@@ -56,7 +62,7 @@ export default function ImportPage() {
           </div>
           <div className="sm:col-span-2">
             <label className="block text-sm font-medium text-slate-600 mb-1.5">Ghi chú sơ bộ</label>
-            <textarea rows={2} value={form.ghiChuCTV||""} onChange={(e) => set("ghiChuCTV", e.target.value)}
+            <textarea rows={2} value={form.ghiChuCTV || ""} onChange={(e) => set("ghiChuCTV", e.target.value)}
               className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm" />
           </div>
         </div>

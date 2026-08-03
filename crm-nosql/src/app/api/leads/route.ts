@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     id: `LD-${today}-${num}`, ...body,
     soTienYeuCau: Number(body.soTienYeuCau) || 0,
     ghiChuCTV: body.ghiChuCTV || "",
-    ctvId: user.id, tsaId: null, statusId: 1,
+    ctvId: user.id, tsaId: null, idRlos: body.idRlos || "", statusId: 1,
     createdAt: now, updatedAt: now,
     history: [{ statusId: 1, note: "Import lead", by: user.hoTen, at: now }],
     approval: null,

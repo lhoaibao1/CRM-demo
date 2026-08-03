@@ -6,7 +6,7 @@ export type User = {
 export type Approval = {
   soTienDuyet: number; bhkv: string; thucNhan: number;
   laiSuat: number; thoiHan: number; ngayTra: number; traThang: number;
-  sanPham: string; idRlos: string;
+  sanPham: string; idRlos: string; soHopDong: string;
 };
 export type Product = { id: string; name: string; laiSuat: number; active: boolean };
 export type HistoryItem = { statusId: number; note: string; by: string; at: string };
@@ -14,6 +14,7 @@ export type Lead = {
   id: string; hoTen: string; cccd: string; sdt: string; ngaySinh: string;
   noiCap: string; ngayCap: string; gioiTinh: string; tinhThanh: string;
   soTienYeuCau: number; ghiChuCTV: string; ctvId: string; tsaId: string | null;
+  idRlos: string;
   statusId: number; createdAt: string; updatedAt: string;
   history: HistoryItem[]; approval: Approval | null;
 };
@@ -32,7 +33,7 @@ export const STATUSES = [
   { id: 6, name: "Đang thẩm định", step: "Pass", color: "indigo", order: 4 },
   { id: 7, name: "Thẩm định từ chối", step: "Close", color: "rose", order: 0 },
   { id: 8, name: "Đã phê duyệt", step: "Pass", color: "emerald", order: 5 },
-  { id: 9, name: "Hồ sơ END", step: "Close", color: "slate", order: 6 },
+  { id: 9, name: "Hoàn thành (Đã giải ngân)", step: "Done", color: "emerald", order: 6 },
   { id: 10, name: "Trả về Sale", step: "Return", color: "orange", order: 0 },
 ] as const;
 
@@ -43,7 +44,7 @@ export const PIPELINE = [
   { id: 5, label: "Bổ sung HS" },
   { id: 6, label: "Thẩm định" },
   { id: 8, label: "Phê duyệt" },
-  { id: 9, label: "END" },
+  { id: 9, label: "Giải ngân" },
 ];
 
 export const WORKFLOW: Record<number, number[]> = {
@@ -84,20 +85,20 @@ function seedLeads(): Lead[] {
       id: "LD-20260801-001", hoTen: "Trần Thị Bích", cccd: "001234567890", sdt: "0901234567",
       ngaySinh: "1990-05-15", noiCap: "CA TP.HCM", ngayCap: "2020-01-10", gioiTinh: "Nữ",
       tinhThanh: "TP. Hồ Chí Minh", soTienYeuCau: 50000000, ghiChuCTV: "Vay tiêu dùng",
-      ctvId: "u4", tsaId: "u2", statusId: 8, createdAt: now, updatedAt: now,
+      ctvId: "u4", tsaId: "u2", idRlos: "RLOS-2026-001", statusId: 8, createdAt: now, updatedAt: now,
       history: [
         { statusId: 1, note: "Import lead", by: "Phạm CTV Một", at: now },
         { statusId: 4, note: "Pass Check Dup", by: "Trần Thị TSA", at: now },
         { statusId: 6, note: "UW01 – Hồ sơ đang thẩm định", by: "Trần Thị TSA", at: now },
         { statusId: 8, note: "UW02 – Hồ sơ được duyệt", by: "Trần Thị TSA", at: now },
       ],
-      approval: { soTienDuyet: 50000000, bhkv: "Có", thucNhan: 48000000, laiSuat: 32, thoiHan: 12, ngayTra: 5, traThang: 4500000, sanPham: "Easy Cash 32", idRlos: "RLOS-2026-001" },
+      approval: { soTienDuyet: 50000000, bhkv: "Có", thucNhan: 48000000, laiSuat: 32, thoiHan: 12, ngayTra: 5, traThang: 4500000, sanPham: "Easy Cash 32", idRlos: "RLOS-2026-001", soHopDong: "HD-2026-001" },
     },
     {
       id: "LD-20260801-002", hoTen: "Lê Hoàng Nam", cccd: "001987654321", sdt: "0912345678",
       ngaySinh: "1988-03-20", noiCap: "CA Hà Nội", ngayCap: "2019-06-01", gioiTinh: "Nam",
       tinhThanh: "Hà Nội", soTienYeuCau: 30000000, ghiChuCTV: "",
-      ctvId: "u4", tsaId: null, statusId: 2, createdAt: now, updatedAt: now,
+      ctvId: "u4", tsaId: null, idRlos: "", statusId: 2, createdAt: now, updatedAt: now,
       history: [
         { statusId: 1, note: "Import lead", by: "Phạm CTV Một", at: now },
         { statusId: 2, note: "R02 – KH nợ xấu/chú ý", by: "Nguyễn Văn Admin", at: now },
@@ -108,7 +109,7 @@ function seedLeads(): Lead[] {
       id: "LD-20260801-003", hoTen: "Hoàng Minh Tuấn", cccd: "079123456789", sdt: "0987654321",
       ngaySinh: "1995-11-08", noiCap: "CA Đồng Nai", ngayCap: "2021-03-15", gioiTinh: "Nam",
       tinhThanh: "Đồng Nai", soTienYeuCau: 40000000, ghiChuCTV: "Vay mua xe",
-      ctvId: "u5", tsaId: "u3", statusId: 6, createdAt: now, updatedAt: now,
+      ctvId: "u5", tsaId: "u3", idRlos: "RLOS-2026-003", statusId: 6, createdAt: now, updatedAt: now,
       history: [
         { statusId: 1, note: "Import lead", by: "Hoàng CTV Hai", at: now },
         { statusId: 4, note: "Pass Check Dup", by: "Lê Văn TSA", at: now },
