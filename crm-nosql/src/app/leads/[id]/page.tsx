@@ -481,14 +481,14 @@ export default function DetailPage() {
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2.5">
-                {[
-                  ["soTienDuyet", "Số tiền duyệt", true],
-                  ["thucNhan", "Thực nhận", true],
-                  ["traThang", "Trả tháng", true],
-                ].map(([k, l]) => (
-                  <div key={k as string}>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">{l as string}</label>
-                    <input value={(ap as any)[k]} onChange={(e) => setAp({ ...ap, [k as string]: fmtInput(e.target.value) })}
+                {([
+                  ["soTienDuyet", "Số tiền duyệt"],
+                  ["thucNhan", "Thực nhận"],
+                  ["traThang", "Trả tháng"],
+                ] as [string, string][]).map(([k, l]) => (
+                  <div key={k}>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">{l}</label>
+                    <input value={(ap as any)[k]} onChange={(e) => setAp({ ...ap, [k]: fmtInput(e.target.value) })}
                       className="w-full px-3 py-2 border rounded-lg text-sm" />
                   </div>
                 ))}
